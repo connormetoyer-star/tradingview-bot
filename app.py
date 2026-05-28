@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 from datetime import datetime
 import time
+import schedule
 
 # Your credentials
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
