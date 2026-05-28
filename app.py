@@ -5,6 +5,10 @@ import requests
 from datetime import datetime
 import time
 import schedule
+import threading
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
 
 # Your credentials
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -13,7 +17,10 @@ CHAT_ID = os.environ.get("CHAT_ID")
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"}
-    requests.post(url, payload)
+    try:
+        requests.post(url, payload)
+    except Exception as e:
+        print(f"Telegram error: {e}")
 
 def calculate_rsi(data, period=14):
     delta = data['Close'].diff()
@@ -72,6 +79,8 @@ def check_signal(symbol, interval, timeframe_label):
                     f"Timeframe: 1 Hour\n"
                     f"🕐 {datetime.now().strftime('%H:%M')}"
                 )
+            else:
+                print(f"  No signal — RSI neutral")
 
         elif interval == "15m":
             if rsi >= 70:
@@ -92,6 +101,8 @@ def check_signal(symbol, interval, timeframe_label):
                     f"⚡ <b>Possible Entry Point</b>\n"
                     f"🕐 {datetime.now().strftime('%H:%M')}"
                 )
+            else:
+                print(f"  No entry signal — RSI neutral")
 
     except Exception as e:
         print(f"Error with {symbol} on {timeframe_label}: {e}")
@@ -108,25 +119,53 @@ def run_scan():
     print("=" * 50)
     print(f"🔍 Scanning {len(symbols)} tickers — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print("=" * 50)
-
     print("\n📊 1 HOUR TIMEFRAME")
     for symbol in symbols:
         check_signal(symbol, "1h", "1H")
-
     print("\n⚡ 15 MIN TIMEFRAME")
     for symbol in symbols:
         check_signal(symbol, "15m", "15min")
-
     print("\n✅ Scan complete!")
 
-# Schedule it
-schedule.every(15).minutes.do(run_scan)
-schedule.every(1).hours.do(run_scan)
+# Webhook route for TradingView alerts
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.json
+    symbol = data.get('symbol', 'UNKNOWN')
+    signal = data.get('signal', 'UNKNOWN')
+    price = data.get('price', 'N/A')
+    indicator = data.get('indicator', 'TradingView Alert')
 
-# Run once immediately on startup
-run_scan()
+    message = (
+        f"📡 <b>TRADINGVIEW ALERT</b>\n"
+        f"Symbol: {symbol}\n"
+        f"Signal: {signal}\n"
+        f"Price: ${price}\n"
+        f"Indicator: {indicator}\n"
+        f"🕐 {datetime.now().strftime('%H:%M')}"
+    )
+    send_telegram_message(message)
+    print(f"Webhook received: {symbol} {signal}")
+    return jsonify({"status": "ok"}), 200
 
-# Keep running
-while True:
-    schedule.run_pending()
-    time.sleep(60)
+@app.route('/')
+def home():
+    return "Trading bot is running!", 200
+
+# Run scanner in background thread
+def run_scheduler():
+    schedule.every(15).minutes.do(run_scan)
+    schedule.every(1).hours.do(run_scan)
+    run_scan()
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+scheduler_thread = threading.Thread(target=run_scheduler)
+scheduler_thread.daemon = True
+scheduler_thread.start()
+
+# Start Flask
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
