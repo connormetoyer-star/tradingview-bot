@@ -7,8 +7,8 @@ import time
 import os
 
 # Your credentials
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHAT_ID = os.environ.get("CHAT_ID")
+BOT_TOKEN = "8872579206:AAFd0o7PKyVMYAu6RBEldoFdQXp2foaOCMA"
+CHAT_ID = "8735780719"
 
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
