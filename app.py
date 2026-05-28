@@ -1,14 +1,13 @@
+import os
 import yfinance as yf
 import pandas as pd
 import requests
 from datetime import datetime
-import schedule
 import time
-import os
 
 # Your credentials
-BOT_TOKEN = "8872579206:AAFd0o7PKyVMYAu6RBEldoFdQXp2foaOCMA"
-CHAT_ID = "8735780719"
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHAT_ID = os.environ.get("CHAT_ID")
 
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
